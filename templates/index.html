@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Student Management System</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Student Management System</h1>
+
+        <!-- Add Student -->
+
+        <div class="card">
+
+            <h2>Add Student</h2>
+
+            <form id="studentForm">
+
+                <input
+                    type="text"
+                    id="name"
+                    placeholder="Student Name"
+                    required
+                >
+
+                <input
+                    type="number"
+                    id="age"
+                    placeholder="Age"
+                    required
+                >
+
+                <input
+                    type="text"
+                    id="department"
+                    placeholder="Department"
+                    required
+                >
+
+                <button type="submit">
+                    Add Student
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <!-- Students -->
+
+        <div class="card">
+
+            <h2>Students</h2>
+
+            <button onclick="loadStudents()">
+                Refresh Students
+            </button>
+
+            <div id="studentsList"></div>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        // Load students when page opens
+
+        loadStudents();
+
+
+        // ---------------------------
+        // GET STUDENTS
+        // ---------------------------
+
+        async function loadStudents() {
+
+            const response = await fetch("/students");
+
+            const students = await response.json();
+
+            const studentsList =
+                document.getElementById("studentsList");
+
+            studentsList.innerHTML = "";
+
+
+            students.forEach(student => {
+
+                const studentDiv =
+                    document.createElement("div");
+
+                studentDiv.className = "student";
+
+                studentDiv.innerHTML = `
+
+                    <div>
+
+                        <strong>
+                            ${student.name}
+                        </strong>
+
+                        <p>
+                            Age: ${student.age}
+                        </p>
+
+                        <p>
+                            Department: ${student.department}
+                        </p>
+
+                    </div>
+
+                    <button
+                        onclick="deleteStudent(${student.id})"
+                    >
+                        Delete
+                    </button>
+
+                `;
+
+                studentsList.appendChild(studentDiv);
+
+            });
+
+        }
+
+
+        // ---------------------------
+        // ADD STUDENT
+        // ---------------------------
+
+        document
+            .getElementById("studentForm")
+            .addEventListener("submit", async function(event) {
+
+                event.preventDefault();
+
+
+                const name =
+                    document.getElementById("name").value;
+
+                const age =
+                    document.getElementById("age").value;
+
+                const department =
+                    document.getElementById("department").value;
+
+
+                const response = await fetch(
+                    "/students",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+
+                        body: JSON.stringify({
+
+                            name: name,
+
+                            age: parseInt(age),
+
+                            department: department
+
+                        })
+                    }
+                );
+
+
+                const data = await response.json();
+
+                console.log(data);
+
+
+                // Clear form
+
+                document
+                    .getElementById("studentForm")
+                    .reset();
+
+
+                // Reload students
+
+                loadStudents();
+
+            });
+
+
+        // ---------------------------
+        // DELETE STUDENT
+        // ---------------------------
+
+        async function deleteStudent(id) {
+
+            const response = await fetch(
+                `/students/${id}`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+            const data = await response.json();
+
+            console.log(data);
+
+
+            loadStudents();
+
+        }
+
+    </script>
+
+</body>
+
+</html>

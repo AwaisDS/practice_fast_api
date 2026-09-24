@@ -1,19 +1,57 @@
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-# Create the FastAPI application
-app = FastAPI(title="Student Management API")
+
+# ==========================================
+# PROJECT PATH
+# ==========================================
+
+BASE_DIR = Path(__file__).resolve().parent
+
+HTML_FILE = BASE_DIR / "templates" / "index.html"
+STATIC_DIR = BASE_DIR / "static"
 
 
-# Define the structure of a student
+# ==========================================
+# FASTAPI APP
+# ==========================================
+
+app = FastAPI(
+    title="Student Management API",
+    description="Student Management REST API",
+    version="1.0.0"
+)
+
+
+# ==========================================
+# STATIC FILES
+# ==========================================
+
+app.mount(
+    "/static",
+    StaticFiles(directory=STATIC_DIR),
+    name="static"
+)
+
+
+# ==========================================
+# STUDENT MODEL
+# ==========================================
+
 class Student(BaseModel):
     name: str
     age: int
     department: str
 
 
-# Temporary database
+# ==========================================
+# TEMPORARY DATABASE
+# ==========================================
+
 students = [
     {
         "id": 1,
@@ -24,25 +62,35 @@ students = [
 ]
 
 
-# Home route
+# ==========================================
+# FRONTEND
+# ==========================================
+
 @app.get("/")
 def home():
-    return {
-        "message": "Welcome to Student API!"
-    }
+
+    return FileResponse(HTML_FILE)
 
 
-# GET: Get all students
+# ==========================================
+# GET ALL STUDENTS
+# ==========================================
+
 @app.get("/students")
 def get_students():
+
     return students
 
 
-# GET: Get one student by ID
+# ==========================================
+# GET STUDENT BY ID
+# ==========================================
+
 @app.get("/students/{student_id}")
 def get_student(student_id: int):
 
     for student in students:
+
         if student["id"] == student_id:
             return student
 
@@ -52,7 +100,10 @@ def get_student(student_id: int):
     )
 
 
-# POST: Add a new student
+# ==========================================
+# ADD STUDENT
+# ==========================================
+
 @app.post("/students", status_code=201)
 def add_student(student: Student):
 
@@ -74,12 +125,17 @@ def add_student(student: Student):
     }
 
 
-# DELETE: Delete a student
+# ==========================================
+# DELETE STUDENT
+# ==========================================
+
 @app.delete("/students/{student_id}")
 def delete_student(student_id: int):
 
     for student in students:
+
         if student["id"] == student_id:
+
             students.remove(student)
 
             return {

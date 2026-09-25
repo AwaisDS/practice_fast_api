@@ -1,9 +1,15 @@
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+
 from pydantic import BaseModel
+
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import Session
+
+from database import Base, engine, get_db
 
 
 # ==========================================
@@ -22,7 +28,7 @@ STATIC_DIR = BASE_DIR / "static"
 
 app = FastAPI(
     title="Student Management API",
-    description="Student Management REST API",
+    description="Student Management REST API with SQLite",
     version="1.0.0"
 )
 
@@ -39,27 +45,46 @@ app.mount(
 
 
 # ==========================================
-# STUDENT MODEL
+# DATABASE MODEL
+# ==========================================
+
+class StudentDB(Base):
+    __tablename__ = "students"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    name = Column(
+        String,
+        nullable=False
+    )
+
+    age = Column(
+        Integer,
+        nullable=False
+    )
+
+    department = Column(
+        String,
+        nullable=False
+    )
+
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
+
+
+# ==========================================
+# PYDANTIC MODEL
 # ==========================================
 
 class Student(BaseModel):
     name: str
     age: int
     department: str
-
-
-# ==========================================
-# TEMPORARY DATABASE
-# ==========================================
-
-students = [
-    {
-        "id": 1,
-        "name": "Ahmed",
-        "age": 21,
-        "department": "Software Engineering"
-    }
-]
 
 
 # ==========================================
@@ -77,7 +102,11 @@ def home():
 # ==========================================
 
 @app.get("/students")
-def get_students():
+def get_students(
+    db: Session = Depends(get_db)
+):
+
+    students = db.query(StudentDB).all()
 
     return students
 
@@ -87,17 +116,23 @@ def get_students():
 # ==========================================
 
 @app.get("/students/{student_id}")
-def get_student(student_id: int):
+def get_student(
+    student_id: int,
+    db: Session = Depends(get_db)
+):
 
-    for student in students:
+    student = db.query(StudentDB).filter(
+        StudentDB.id == student_id
+    ).first()
 
-        if student["id"] == student_id:
-            return student
+    if student is None:
 
-    raise HTTPException(
-        status_code=404,
-        detail="Student not found"
-    )
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found"
+        )
+
+    return student
 
 
 # ==========================================
@@ -105,19 +140,22 @@ def get_student(student_id: int):
 # ==========================================
 
 @app.post("/students", status_code=201)
-def add_student(student: Student):
+def add_student(
+    student: Student,
+    db: Session = Depends(get_db)
+):
 
-    new_id = max(
-        [s["id"] for s in students],
-        default=0
-    ) + 1
+    new_student = StudentDB(
+        name=student.name,
+        age=student.age,
+        department=student.department
+    )
 
-    new_student = {
-        "id": new_id,
-        **student.model_dump()
-    }
+    db.add(new_student)
 
-    students.append(new_student)
+    db.commit()
+
+    db.refresh(new_student)
 
     return {
         "message": "Student added successfully",
@@ -130,19 +168,26 @@ def add_student(student: Student):
 # ==========================================
 
 @app.delete("/students/{student_id}")
-def delete_student(student_id: int):
+def delete_student(
+    student_id: int,
+    db: Session = Depends(get_db)
+):
 
-    for student in students:
+    student = db.query(StudentDB).filter(
+        StudentDB.id == student_id
+    ).first()
 
-        if student["id"] == student_id:
+    if student is None:
 
-            students.remove(student)
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found"
+        )
 
-            return {
-                "message": "Student deleted successfully"
-            }
+    db.delete(student)
 
-    raise HTTPException(
-        status_code=404,
-        detail="Student not found"
-    )
+    db.commit()
+
+    return {
+        "message": "Student deleted successfully"
+    }
